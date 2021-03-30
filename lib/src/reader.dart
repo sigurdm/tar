@@ -3,7 +3,7 @@ import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:chunked_stream/chunked_stream.dart';
+import 'package:async/async.dart';
 import 'package:meta/meta.dart';
 import 'package:typed_data/typed_data.dart';
 
@@ -23,7 +23,7 @@ import 'utils.dart';
 @sealed
 class TarReader implements StreamIterator<TarEntry> {
   /// A chunked stream iterator to enable us to get our data.
-  final ChunkedStreamIterator<int> _chunkedStream;
+  final ChunkedStreamReader<int> _chunkedStream;
   final PaxHeaders _paxHeaders = PaxHeaders();
   final int _maxSpecialFileSize;
 
@@ -69,7 +69,7 @@ class TarReader implements StreamIterator<TarEntry> {
   /// maximum length. Changing the default of 2 KiB is rarely necessary.
   TarReader(Stream<List<int>> tarStream,
       {int maxSpecialFileSize = defaultSpecialLength})
-      : _chunkedStream = ChunkedStreamIterator(tarStream),
+      : _chunkedStream = ChunkedStreamReader(tarStream),
         _maxSpecialFileSize = maxSpecialFileSize;
 
   @override
@@ -352,7 +352,7 @@ class TarReader implements StreamIterator<TarEntry> {
 
       final streamLength = nextBlockSize(sparseDataLength);
       final safeStream =
-          _publishStream(_chunkedStream.substream(streamLength), streamLength);
+          _publishStream(_chunkedStream.readStream(streamLength), streamLength);
       return sparseStream(safeStream, sparseHoles, header.size);
     } else {
       var size = header.size;
@@ -367,7 +367,7 @@ class TarReader implements StreamIterator<TarEntry> {
       } else {
         _markPaddingToSkip(size);
         return _publishStream(
-            _chunkedStream.substream(header.size), header.size);
+            _chunkedStream.readStream(header.size), header.size);
       }
     }
   }
